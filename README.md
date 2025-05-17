@@ -13,3 +13,8 @@ This main 'Task' can be achieved by dividing it into several 'sub-tasks' which a
 This module will focus on the first sub-task:
 
 ### Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script
+
+Before starting this sub-task, we need to handle some general unexpected events that might occur, which our shell script should be able to manage.
+1. User does not provide a CSV file as an input.
+2. User provides a CSV file which doesn't exist.
+3. User requests '-help'. 
