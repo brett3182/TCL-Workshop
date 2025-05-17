@@ -21,6 +21,7 @@ Before starting this sub-task, we need to handle some general unexpected events 
 
 Having said this, now we will work on our shell script:
 
+(''')
 #!/bin/tcsh -f
 
 echo "   *********      *********       *********       ***********     ***********     "
@@ -91,5 +92,6 @@ else
         tclsh vsdsynth.tcl $argv[1]
 endif
 
+(''')
 
 
