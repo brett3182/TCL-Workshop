@@ -94,7 +94,7 @@ else
 endif
 ```
 
-
+***Brief description of the shell script***
 The three events are handled by the if-then blocks.
 
 1. If user does not provide a CSV file, display an error
