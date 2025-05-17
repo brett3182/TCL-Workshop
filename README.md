@@ -12,4 +12,4 @@ This main 'Task' can be achieved by dividing it into several 'sub-tasks' which a
 
 This module will focus on the first sub-task:
 
-#### Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script
+### Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script
