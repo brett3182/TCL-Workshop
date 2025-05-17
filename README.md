@@ -137,7 +137,7 @@ else
                 exit 1
         endif
 ```
-4. If everything is correct, pass it on to the TCL script
+4. If everything is correct, pass the CSV to the TCL script
 ```
 else
         tclsh vsdsynth.tcl $argv[1]
