@@ -156,13 +156,13 @@ The results are as follows:
 
 **Event 1: User does not provide a CSV file**
 
-Here after the command 'vsdsynth' no csv file is mentioned as an argument. The shell script notices this and flags an error. 
+Here after the command 'vsdsynth' no csv file is provided as an argument. The shell script notices this and flags an error. 
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/1.png?raw=true)
 
 **Event 2: User provides incorrect CSV file**
 
-Here a CSV file my.csv is mentioned after the command but this file doesn't exist. 
+Here a CSV file my.csv is provided after the command but this file doesn't exist. 
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/2.png?raw=true)
 
