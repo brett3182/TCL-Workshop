@@ -19,7 +19,7 @@ Before starting this sub-task, we need to handle some general unexpected events 
 2. User provides a CSV file which doesn't exist.
 3. User requests '-help'.
 
-Having said this, now we will work on our shell script:
+With that said, we will now move on to the shell script. It includes a logo featuring my name, followed by some basic details.  
 
 
 ```
@@ -49,7 +49,7 @@ set my_work_dir = 'pwd'
 #*******         INITIALIZATION         ***********
 #**************************************************
 
-#This script checks for three scenarios dicussed in the lecture videos. The first 'if-then' loop checks whether there is a csv file provided as an input argument. 
+#This script checks for three scenarios dicussed in the lectures. The first 'if-then' loop checks whether there is a csv file provided as an input argument. 
 #The two nested 'if-then' loops then check for the condition of incorrect CSV files provided by the user (incorrect name or path, basically the file doesn't exist)
 # and the condition if the user requests '-help'
 # Finally if no error is present, the CSV file will be passed on to the TCL script
@@ -93,3 +93,53 @@ else
         tclsh vsdsynth.tcl $argv[1]
 endif
 ```
+
+
+The three events are handled by the if-then blocks.
+
+1. If user does not provide a CSV file, display an error
+```
+if ($#argv != 1) then
+        echo "ERROR"
+        echo "Error Info: No CSV file provided as an input"
+        exit 1
+endif
+```
+
+2. If user provides an incorrect CSV file:
+```
+if (! -f $argv[1] || $argv[1] == "-help") then
+
+        if ($argv[1] != "-help") then
+                echo "Error: Cannot find csv file $argv[1]. Exiting......."
+                exit 1
+```
+3. User requests help
+```
+else
+                echo USAGE: ./vsdsynth \<csv file\>
+                echo
+                echo where \<csv file\> consists of 2 columns
+                echo
+                echo \<Design Name\> is the name of top level module
+                echo
+                echo \<Output Directory\> is the name of output directory where you want to dump synthesis script, synthesized netlist and timing reports
+                echo
+                echo \<Netlist Directory\> is the name of directory where all RTL netlist are present
+                echo
+                echo \<Early Library Path\> is the file path of the early cell library to be used for STA
+                echo
+                echo \<Late Library Path\> is the file path of the late cell library to be used for STA
+                echo
+                echo \<Constraints file\> is csv file path of constraints to be used for STA
+                echo
+                exit 1
+        endif
+```
+4. If everything is correct, pass it on to the TCL script
+```
+else
+        tclsh vsdsynth.tcl $argv[1]
+endif
+```
+
