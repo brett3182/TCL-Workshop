@@ -95,6 +95,7 @@ endif
 ```
 
 ***Brief description of the shell script***
+
 The three events are handled by the if-then blocks.
 
 1. If user does not provide a CSV file, display an error
@@ -142,4 +143,11 @@ else
         tclsh vsdsynth.tcl $argv[1]
 endif
 ```
+
+
+
+
+The results are as follows:
+**Event 1: No CSV File provided**
+
 
