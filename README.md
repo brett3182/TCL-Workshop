@@ -10,6 +10,6 @@ This main 'Task' can be achieved by dividing it into several 'sub-tasks' which a
 3. To convert Format 1 and SDC to Format 2 and pass it to the timing tool Opentimer. Format 2 is the format which is understood by the STA engine.
 4. To generate the output report
 
-This module will focus on the first sub-task.
+This module will focus on the first sub-task:
 
-**Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script**
+#### Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script
