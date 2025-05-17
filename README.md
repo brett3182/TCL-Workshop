@@ -7,7 +7,9 @@ This part of the workshop involves completing a task where we develop a TCL inte
 This main 'Task' can be achieved by dividing it into several 'sub-tasks' which are:
 1. To create a command ('vsdsynth' in this project) and pass the CSV file from UNIX shell to TCL script
 2. To convert all inputs to Format 1 and SDC format and pass it to the synthesis tool Yosys. Format 1 over here is the format which is understood by the synthesis tool, in our case, Yosys.
-3. To convert Format 1 and SDC to Format 2 and pass it to the timing tool Opentimer. Format 2 is the formart which is understood by the STA engine.
+3. To convert Format 1 and SDC to Format 2 and pass it to the timing tool Opentimer. Format 2 is the format which is understood by the STA engine.
 4. To generate the output report
 
+This module will focus on the first sub-task.
 
+**Create a command ('vsdsynth') and pass the CSV file from UNIX shell to TCL script**
