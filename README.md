@@ -189,7 +189,7 @@ This module is divided into three sub-parts:
 2. Verifying path existence by checking whether the specified file and directory paths exist.
 3. Converting the constraints from CSV format to SDC format.
 
-**Creating variables**
+**2.1 Creating variables**
 
 We have two CSV files with us, one of which contains the basic design details. This file includes the paths to important files and directories that will be required for processing. The file is named openMSP430_design_details.csv. Below is a snapshot of the CSV file:
 
@@ -265,4 +265,70 @@ puts "LateLibraryPath = $LateLibraryPath"
 puts "ConstraintsFile = $ConstraintsFile"
 ```
 
+The result is shown in the image below. The corresponding variables and their respective paths have been printed.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/1.png?raw=true)
+
+
+**2.2 Verifying path existence**
+
+The CSV file contains the paths to various files and directories, but we need to validate their existence before proceeding further in the script. For example, if the netlist directory does not exist, we won't have access to the RTL netlists required for further processing. Therefore, it is essential to check whether the paths specified in the CSV file actually exist. This is done by the below code snippet. 
+
+```
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------This section of the script checks whether the files and directories mentioned in the CSV file exists or not----------------------------------#
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#Checking if early cell library .lib file exists or not. If not, then exit from TCL script
+if {! [file exists $EarlyLibraryPath]} {
+        puts "\nError: Cannot find early cell library in path $EarlyLibraryPath. Exiting..."
+        exit
+} else {
+        puts "\nInfo: Early cell library found in path $EarlyLibraryPath"
+}
+
+#Checking if late cell library .lib file exists or not. If not, then exit from TCL script
+if {! [file exists $LateLibraryPath]} {
+        puts "\nError: Cannot find late cell library in path $LateLibraryPath. Exiting..."
+        exit
+} else {
+        puts "\nInfo: Late cell library found in path $LateLibraryPath"
+}
+
+#Checking if Output directory exists or not. If not, then create the output directory.
+if {! [file isdirectory $OutputDirectory]} {
+        puts "\nError: Cannot find output directory $OutputDirectory. Creating $OutputDirectory"
+        file mkdir $OutputDirectory
+} else {
+        puts "\nInfo: Output directory found in path $OutputDirectory"
+}
+
+#Checking if netlist directory exists or not. If not, then exit from TCL script
+if {! [file isdirectory $NetlistDirectory]} {
+        puts "\nError: Cannot find RTL netlist directory in path $NetlistDirectory. Exiting..."
+        exit
+} else {
+        puts "\nInfo: Netlist directory found in path $EarlyLibraryPath"
+}
+
+#Checking if constraints file exists or not. If not, then exit from TCL script
+if {! [file exists $ConstraintsFile]} {
+        puts "\nError: Cannot find constraints file in path $ConstraintsFile. Exiting..."
+        exit
+} else {
+        puts "\nInfo: Constraints file found in path $ConstraintsFile"
+}
+```
+
+If all files and directories exist then the script produces the below output. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/3.png?raw=true)
+
+If the output directory does not exist, then the script flags an error and then creates the output directory. This is done only in case of output directory because it is where the final report would be stored. It does not have pre-existent files that would be required for processing. 
+ 
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/4.png?raw=true)
+
+If any file or directory does not exist, the script displays an error message and stops execution without proceeding further.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/5.png?raw=true)
 
