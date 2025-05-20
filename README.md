@@ -195,7 +195,7 @@ We have two CSV files with us, one of which contains the basic design details. T
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/2.png?raw=true)
 
-To create variables, we reuse the element values present in the CSV file by removing any spaces between them. For instance, the element at cell (1, A), which is "Output Directory", becomes the variable OutputDirectory. This transformation is applied only to the parameter names, which are then assigned to their respective paths. The code snippet below performs this task. It is well-commented a good understanding of how it works. This TCL script also converts relative paths (eg. ~/verilog) to absolute paths (/home/vsduser/vsdsynth/verilog).
+To create variables, we reuse the element values present in the CSV file by removing any spaces between them. For instance, the element at cell (1, A), which is "Output Directory", becomes the variable OutputDirectory. This transformation is applied only to the parameter names, which are then assigned to their respective paths. The code snippet below performs this task. It is well-commented to give a good understanding of how it works. This TCL script also converts relative paths (eg. ~/verilog) to absolute paths (/home/vsduser/vsdsynth/verilog).
 
 
 ```
