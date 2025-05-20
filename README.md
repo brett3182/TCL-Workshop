@@ -195,7 +195,7 @@ We have two CSV files with us, one of which contains the basic design details. T
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/2.png?raw=true)
 
-To create variables, we reuse the element values present in the CSV file by removing any spaces between them. For instance, the element at cell (1, A), which is "Output Directory", becomes the variable OutputDirectory. This transformation is applied only to the parameter names, which are then assigned to their respective paths. The code snippet below performs this task. It is well-commented a good understanding of how it works.
+To create variables, we reuse the element values present in the CSV file by removing any spaces between them. For instance, the element at cell (1, A), which is "Output Directory", becomes the variable OutputDirectory. This transformation is applied only to the parameter names, which are then assigned to their respective paths. The code snippet below performs this task. It is well-commented a good understanding of how it works. This TCL script also converts relative paths (eg. ~/verilog) to absolute paths (/home/vsduser/vsdsynth/verilog).
 
 
 ```
@@ -332,3 +332,58 @@ If any file or directory does not exist, the script displays an error message an
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/5.png?raw=true)
 
+
+**2.3 Converting constraints file into SDC**
+
+The second CSV file we have is the constraints file, named openMSP430_design_constraints.csv. This file contains information about various design constraints and is divided into three main sections: CLOCKS, INPUTS, and OUTPUTS. Below is a snippet of the CSV file.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/7.png?raw=true)
+
+Converting these constraint values into SDC format involves several steps. In this module, we will focus on the first part: extracting the positions or sections in the CSV file where it is divided into CLOCKS, INPUTS, and OUTPUTS. The code snippet below performs this task:
+
+```
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------This part of the script converts the constraints file openMSP430_design_constraints.csv into SDC format----------------------------------#
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+
+puts "\nInfo: Dumping SDC constraints for $DesignName"
+
+#Create a matrix named 'constraints' where the openMSP430_design_constraints.csv elements would be stored
+::struct::matrix constraints
+
+#Open the constraint file and store the elements in a variable 'chan'
+set chan [open $ConstraintsFile]
+
+#Convert csv elements into matrix format and store then in matrix 'constraints'. The individual elements can be identified using comma ','. auto is used to automatically detect number of rows and columns
+csv::read2matrix $chan constraints , auto
+
+#Close opened csv because we have the elements in matrix 'constraints' now
+close $chan
+
+#Extracting number of rows and storing it in variable 'number_of_rows'
+set number_of_rows [constraints rows]
+puts "number_of_rows = $number_of_rows"
+
+#Extracting number of columns and storing it in variable 'number_of_columns'
+set number_of_columns [constraints columns]
+puts "number_of_columns = $number_of_columns"
+
+#Extracting the position of the cell where clock parameters start
+set clock_start [lindex [lindex [constraints search all CLOCKS] 0] 1]
+set clock_start_column [lindex [lindex [constraints search all CLOCKS] 0] 0]
+puts "clock_start = $clock_start"
+puts "clock_start_column = $clock_start_column"
+
+#Extracting the position of the cell where input and output parameters begin. It searches for keyword INPUT and OUTPUT
+set input_ports_start [lindex [lindex [constraints search all INPUTS] 0] 1]
+puts "input_ports_start = $input_ports_start"
+set output_ports_start [lindex [lindex [constraints search all OUTPUTS] 0] 1]
+puts "output_ports_start = $output_ports_start"
+```
+
+We can see that the corresponding positions have been successfully extracted.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/6.png?raw=true)
+
+This completes our second module. 
