@@ -178,3 +178,91 @@ This completes the first module and the first sub-task.
 
 
 
+## Module 2 - Variable Creation and Processing Constraints from CSV File
+
+In this module, we will start writing the actual TCL script. 
+
+As discussed in Module 1, if everything functions correctly, the CSV file is successfully passed on to the TCL script for further processing.
+
+This module is divided into three sub-parts:
+1. Creating variables using the variable names present in the CSV file.
+2. Verifying path existence by checking whether the specified file and directory paths exist.
+3. Converting the constraints from CSV format to SDC format.
+
+**Creating variables**
+
+We have two CSV files with us, one of which contains the basic design details. This file includes the paths to important files and directories that will be required for processing. The file is named openMSP430_design_details.csv. Below is a snapshot of the CSV file:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/2.png?raw=true)
+
+To create variables, we reuse the element values present in the CSV file by removing any spaces between them. For instance, the element at cell (1, A), which is "Output Directory", becomes the variable OutputDirectory. This transformation is applied only to the parameter names, which are then assigned to their respective paths. The code snippet below performs this task. It is well-commented a good understanding of how it works.
+
+
+```
+#-----------------------------------------------------------------------------------:---------------------------------------------------------------------#
+#---------------This section of the code is used to auto-create variables. This is done using the pre-existent variable names in the CSV file. ----------#
+#-------------------------We are just removing the spaces between variable names eg: Output Directory becomes OutputDirectory. --------------------------#
+#--------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+
+#This command accesses contents present at index 0 of argv. argv is our csv file which is passed from the shell script. It is stored as variable 'filename' 
+set filename [lindex $argv 0]
+
+#These two packages are required for processing csv and matrix operations
+package require csv
+package require struct::matrix
+
+#This command creates a new matrix object named 'm'
+struct::matrix m
+
+#This command opens the csv file and stores the opened file in variable f. Similar to vim command. 
+set f [open $filename]
+
+#This command converts our csv cell values into matirx format and stores it in matrix 'm'. auto is used to automatically assign the rows and columns
+csv::read2matrix $f m , auto
+
+#Close the opened csv file because now we have the contents in matrix 'm'
+close $f
+
+#Sets the number of columns to variable 'columns'
+set columns [m columns]
+
+#m add columns $columns. This commented command is used to add more columns if required. Not needed in our case
+
+#We convert matrix 'm' into an array called 'my_arr'. This is done to access individual elements of the matrix
+m link my_arr
+
+#Setting the numnber of rows
+set num_of_rows [m rows]
+
+#------------------This ends the process of accessing contents of the csv file. Now the next section creates variables using pre-existent names present in the csv file----#
+
+#Initialize a variable i.
+set i 0
+
+#This part loops over column 0, removes it spaces to create variable name and then assigns it to a value which is present in column 1
+
+while {$i < $num_of_rows} {
+        puts "\nInfo: Setting $my_arr(0,$i) as '$my_arr(1,$i)'"
+        if {$i==0} {
+                #Since the first object is just a name 
+                set [string map {" " ""} $my_arr(0,$i)] $my_arr(1,$i)
+        } else {
+                #The second part of the command normalizes the entire paths. eg ~/Desktop becomes /home/user/Desktop
+                set [string map {" " ""} $my_arr(0,$i)] [file normalize $my_arr(1,$i)]
+        }
+        #Increment count. expr is evalute an expression
+        set i [expr {$i+1}]
+}
+
+#Below messages to print to make the user informed about the variabe names and paths
+puts "\nInfo: Below are the list of initial variables and their values. These can be used for debugging"
+puts "DesignName = $DesignName"
+puts "OutputDirectory = $OutputDirectory"
+puts "NetlistDirectory = $NetlistDirectory"
+puts "EarlyLibraryPath = $EarlyLibraryPath"
+puts "LateLibraryPath = $LateLibraryPath"
+puts "ConstraintsFile = $ConstraintsFile"
+```
+
+
