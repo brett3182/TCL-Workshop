@@ -388,7 +388,7 @@ We can see that the corresponding positions have been successfully extracted.
 
 This completes our second module. 
 
-## Module 3 - Processing clock and input constraints
+## Module 3 - Processing Clock and Input Constraints
 
 Until the second module, we identified the positions where the clock, input, and output ports begin in the CSV file. In this module, we will work on writing the actual SDC file using the constraints defined in the constraints.csv file (2nd csv file). We will process each part, clock, input, and output separately.
 
@@ -632,4 +632,251 @@ We can validate them with respect to the csv file.
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/13.png?raw=true)
 
 This completes processing our input constraints. 
+
+
+
+## Module 4 - Complete Scripting and Yosys Synthesis Introduction 
+
+This module completes the final part of SDC constraints generation by processing the output ports. After this, the next step is to create a synthesis script for the Yosys synthesis tool. The script involves several steps, one of which is hierarchy checking, and that will be discussed in this module. 
+
+**Output Constraints**
+
+The script for output constraints complements the one used for input constraints, as the underlying algorithm remains the same. Below is the script used to process the output constraints.
+
+```
+#----------------------------------------------------------------------------------------Output constraints----------------------------------------------------------------------------------------#
+
+#Setting delay parameters (extracting the position in  the matrix 'constraints'
+set output_load_start [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}]  load] 0 ] 0]
+set output_early_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}] early_rise_delay] 0] 0]
+set output_early_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}] early_fall_delay] 0] 0]
+set output_late_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}] late_rise_delay] 0] 0]
+set output_late_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}] late_fall_delay] 0] 0]
+
+#Setting the clock parameter for output
+set related_clock [lindex [lindex [constraints search rect $clock_start_column $output_ports_start [expr {$number_of_columns-1}] [expr {$number_of_rows-1}] clocks] 0] 0]
+
+#Initialize i to loop over
+set i [expr {$output_ports_start+1}]
+
+#Set end of output ports 
+set end_of_ports [expr {$number_of_rows}]
+
+#Info messages to be printed
+puts "\nInfo-SDC: Working on SDC constraints...."
+puts "\nInfo-SDC: Categorizing output ports as bits and bussed"
+
+while { $i < $end_of_ports } {
+        #Differentiating output ports as bussed and bits
+        #Select each and every netlist one by one
+        set netlist [glob -dir $NetlistDirectory *.v]
+        #To store the final result in a temporary file with write access
+        set tmp_file [open /tmp/1 w]
+        #Loop to identify output  port names
+        foreach f $netlist {
+                set fd [open $f]
+                #puts "reading file $f"
+                while {[gets $fd line] != -1} {
+                        set pattern1 " [constraints get cell 0 $i];"
+                        if {[regexp -all -- $pattern1 $line]} {
+                                #puts "pattern1 \"$pattern1\" found and matching line in verilog file \"$f\" is \"$line\""
+                                set pattern2 [lindex [split $line ";"] 0]
+                                #puts "creating pattern2 by splitting pattern1 using semi-colon as delimeter => \"$pattern2\""
+                                if {[regexp -all {output} [lindex [split $pattern2 "\S+"] 0]]} {
+                                #puts "out of all patterns, \"$pattern2\" has matching string \"output\". So preserving this line and ignoring others"
+                                set s1 "[lindex [split $pattern2 "\S+"] 0] [lindex [split $pattern2 "\S+"] 1] [lindex [split $pattern2 "\S+"] 2]"
+                                #puts "printing first 3 elements of pattern2 as \"$s1\" using space as delimeter"
+                                puts -nonewline $tmp_file "\n[regsub -all {\s+} $s1 " "]"
+                                #puts "replace multiple spaces in s1 by single space and reformat as \"[regsub -all {\s+} $s1 " "]\""
+                                }
+                }
+}
+close $fd
+}
+close $tmp_file
+#Opening our temporary file 1 in read mode
+set tmp_file [open /tmp/1 r]
+
+#Creating and opening another temporary file 2 in write mode. This temp2 file will have our unique (non-redundant) ports
+set tmp2_file [open /tmp/2 w]
+
+#The below 4 puts statements are info messages just to check whether the operations of read, split, sort and join are happening properly. 
+#We can't use them together because TCL allows only command to read the file. If all 4 of them are used together only read for first one will work and may lead to errors later on.
+#puts "reading [read $tmp_file]"
+#puts "splitting /tmp/1 file as [split [read $tmp_file] \n]"
+#puts "sorting /tmp/1 file as [lsort -unique [split [read $tmp_file] \n]]"
+#puts "joining /tmp/1 file as [join [lsort -unique [split [read $tmp_file] \n]] ]"
+
+#Final unique ports present in tmp2 file
+puts -nonewline $tmp2_file "[join [lsort -unique [split [read $tmp_file] \n]] \n]"
+close $tmp_file
+close $tmp2_file
+
+#Opening temp2 file in read mode
+set tmp2_file [open /tmp/2 r]
+
+#Counting the number of elements in each individal port of temp2. If count is 2 then it is not bussed, if 3 then bussed
+set count [llength [read $tmp2_file]]
+#puts "Count is $count"
+
+#This if-then loops helps to put * over multi-bit (bussed ports)
+if {$count >2} {
+        set op_ports [concat [constraints get cell 0 $i]*]
+        #puts "\nBussed"
+} else {
+        set op_ports [constraints get cell 0 $i]
+        #puts "\nNot Bussed"
+}
+
+#Info to print to the user. This will also tell whether the port is bused or not by noticing the *
+puts -nonewline $sdc_file "\nset_load [constraints get cell $output_load_start $i] \[get_ports $op_ports]"
+puts "output port name is $op_ports since count is $count\n"
+#These puts statements write the output port parameters in SDC format to the .sdc file present in the output directory
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_early_rise_delay_start $i] \[get_ports $op_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -fall -source_latency_included [constraints get cell $output_early_fall_delay_start $i] \[get_ports $op_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -max -rise -source_latency_included [constraints get cell $output_late_rise_delay_start $i] \[get_ports $op_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -max -fall -source_latency_included [constraints get cell $output_late_fall_delay_start $i] \[get_ports $op_ports\]"
+
+#Incrementing to loop over all output ports
+set i [expr {$i+1}]
+}
+close $tmp2_file
+close $sdc_file
+
+puts "\nInfo: SDC created. Please check constraints in path $OutputDirectory/$DesignName.sdc"
+```
+
+Finally, after processing all the constraints, we get the message: "SDC created."
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/1.png?raw=true)
+
+We can see that the output constraints have been written successfully in the SDC file. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/2.png?raw=true)
+
+We can validate it with respect to the csv file. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/3.png?raw=true)
+
+This completes the processing of our output constraints and, with it, all the constraints. We have now successfully converted the constraints.csv file into an SDC file.
+
+**Hierarchy Check**
+
+The next step is to check whether all the Verilog modules have been included in the top-level module. This is part of the hierarchy check.
+
+Before proceeding with the hierarchy check, we first need to create the synthesis script. The Yosys tool expects the synthesis script in a specific format. The initial part of this process is handled by the script shown below. It creates a file named openMSP430.hier.ys and writes the appropriate synthesis commands into it, including specifying the paths to all the Verilog files. This is accomplished by the code below.
+
+```
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------------Hierarchy Check----------------------------------------------------------------------------------#
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#Info message to be printed
+puts "\nInfo: Creating hierarchy check script to be used by Yosys"
+
+#This command is required for synthesis script. The late library file is set to variable data
+set data "read_liberty -lib -ignore_miss_dir -setattr blackbox ${LateLibraryPath}"
+
+#Printing out path of late library file
+puts "data is \"$data\""
+
+#Create a new file openMSP430.hier.ys and store it in variable filename
+set filename "$DesignName.hier.ys"
+
+#Print out the filename
+puts "filename is \"$filename\""
+
+#Open the hierarchy.ys file in write mode to write all the things which would be required by synthesis script
+set fileId [open $OutputDirectory/$filename "w"]
+puts "open \"$OutputDirectory/$filename\" in write mode"
+
+#First line to be written in synthesis script
+puts -nonewline $fileId $data
+
+#Go through all the netlists 
+set netlist [glob -dir $NetlistDirectory *.v]
+puts "netlist is \"$netlist\""
+
+#Loop through each of the .v file one by one and enter the loop
+foreach f $netlist {
+        set data $f
+        #Print out for user info
+        puts "data is \"$f\""
+        #Each of the .v file path to be written in .hier.ys synthesis script file
+        puts -nonewline $fileId "\nread_verilog $f"
+}
+
+#Add this line in synthesis script file .hier.ys after all netlist files have been added
+puts -nonewline $fileId "\nhierarchy -check"
+close $fileId
+```
+
+The code is well-commented to help understand the underlying process, and the outputs at various steps are shown below.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/4.png?raw=true)
+
+The synthesis script file for Yosys is also created.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/5.png?raw=true)
+
+The contents of the file are the commands required by Yosys to perform syntheis. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/6.png?raw=true)
+
+The next step is to perform the actual hierarchy check, which is handled by the script below.
+
+```
+#Info messages to be printed
+puts "\nclose \"$OutputDirectory/$filename\"\n"
+puts "\nChecking hierarchy...."
+
+#This command checks for any 'ERROR' in the synthesis script. If there is an error it flags a logic 1
+#It executes a shell command 'yosys' in the TCL script. Our yosys runs our synthesis script and stores the logs as mentioned in the command
+set my_err [catch {exec yosys -s $OutputDirectory/$DesignName.hier.ys >& $OutputDirectory/$DesignName.hierarchy_check.log} msg]
+puts "err flag is $my_err"
+
+#If there is an error in hierarchy do this
+if { $my_err } {
+        #Our log file
+        set filename "$OutputDirectory/$DesignName.hierarchy_check.log"
+        puts "log file name is $filename"
+        #Whenever an error occurs yosys prints 'referenced in module'. So we will be searching for this keyword
+        set pattern {referenced in module}
+        puts "pattern is $pattern"
+        set count 0
+        #Opening our log file in read mode
+        set fid [open $filename r]
+        #Go through all the lines
+        while {[gets $fid line] != -1} {
+                #redundant ststement. Does same functionality as 'if-then' then in the next line
+                incr count [regexp -all -- $pattern $line]
+                #Checks whether the pattern 'referenced in module' which occurs during error is present in any line
+                if {[regexp -all -- $pattern $line]} {
+                        #If error occurs print out this
+                        puts "\nError: module [lindex $line 2] is not part of design $DesignName. Please correct RTL in the path '$NetlistDirectory'"
+                        puts "\nInfo: Hierarchy check FAIL"
+                }
+        }
+        close $fid
+} else {
+        puts "\nInfo: Hierarchy check PASS"
+}
+puts "\nInfo: Please find hierarchy check details in [file normalize $OutputDirectory/$DesignName.hierarchy_check.log] for more info"
+```
+
+If everything is properly connected, there will be no hierarchy errors, and we will get the output 'Hierarchy check PASS'
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/7.png?raw=true)
+
+If the hierarchy is not maintained, such as when the module omsp_alu is not instantiated properly in the top module, we get the output 'Hierarchy check FAIL'
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/8.png?raw=true)
+
+The error is mentioned in the terminal itself but we can also check the log file to validate it. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_4/9.png?raw=true) 
+
+This completes our hierarchy check. 
+
+
 
