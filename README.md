@@ -387,3 +387,249 @@ We can see that the corresponding positions have been successfully extracted.
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_2/6.png?raw=true)
 
 This completes our second module. 
+
+## Module 3 - Processing clock and input constraints
+
+Until the second module, we identified the positions where the clock, input, and output ports begin in the CSV file. In this module, we will work on writing the actual SDC file using the constraints defined in the constraints.csv file (2nd csv file). We will process each part, clock, input, and output separately.
+
+This module would cover the first two parts, clock and input. 
+
+**Clock constraints**
+
+The code snippet below converts the parameters given in the constraints.csv file into the SDC format. The TCL script first identifies the column numbers where the parameters (e.g., early_rise_delay, late_fall_delay) begin. It also creates an SDC file if one is not already present in the output directory. Based on the identified column numbers, we loop over that section and write the values in SDC format. Note that this script is only to process the clock constraints. 
+
+```
+#-----------------------------------------------------------------  Clock constraints---------------------------------------------------------------------#
+
+#-----------------------------------------------------------------Clock latency constraints---------------------------------------------------------------#
+
+#The four commands below find the position where the clock delay constraint parameters - refer csv file (eg. early_rise_delay, late_fall_delay) are present in the matrix 'constraints'
+#It then assigns the position to that variable
+set clock_early_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] early_rise_delay] 0] 0]
+
+set clock_early_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] early_fall_delay] 0] 0]
+
+set clock_late_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] late_rise_delay] 0] 0]
+
+set clock_late_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] late_fall_delay] 0] 0]
+
+#------------------------------------------------------------------Clock transition constraints------------------------------------------------------------#
+
+#The four commands below find the position where the clock slew constraint parameters - refer csv file (eg. early_rise_slew, late_fall_slew) are present in the matrix 'constraints'
+set clock_early_rise_slew_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] early_rise_slew] 0] 0]
+
+set clock_early_fall_slew_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] early_fall_slew] 0] 0]
+
+set clock_late_rise_slew_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] late_rise_slew] 0] 0]
+
+set clock_late_fall_slew_start [lindex [lindex [constraints search rect $clock_start_column $clock_start [expr {$number_of_columns-1}] [expr {$input_ports_start-1}] late_fall_slew] 0] 0]
+
+#Creating the sdc file in the output directory
+set sdc_file [open $OutputDirectory/$DesignName.sdc "w"]
+
+#Initialize a variable 'i' and increment it to 1 since the parameter values start from second row
+set i [expr {$clock_start+1}]
+
+#Position where the clock ports end
+set end_of_ports [expr {$input_ports_start-1}]
+
+#Info statement to print out 
+puts "\nInfo-SDC: Working on clock constraints...."
+
+#This loop writes the constraints in the sdc file
+while { $i < $end_of_ports } {
+        puts "Starting clock SDC writing for [constraints get cell 0 $i]"
+        puts -nonewline $sdc_file "\ncreate_clock -name [constraints get cell 0 $i] -period [constraints get cell 1 $i] -waveform \{0 [expr {[constraints get cell 1 $i]*[constraints get cell 2 $i]/100}]\} \[get_ports [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_transition -rise -min [constraints get cell $clock_early_rise_slew_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_transition -fall -min [constraints get cell $clock_early_fall_slew_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_transition -rise -max [constraints get cell $clock_late_rise_slew_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_transition -fall -max [constraints get cell $clock_late_fall_slew_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_latency -source -early -rise [constraints get cell $clock_early_rise_delay_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_latency -source -early -fall [constraints get cell $clock_early_fall_delay_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_latency -source -late -rise [constraints get cell $clock_late_rise_delay_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        puts -nonewline $sdc_file "\nset_clock_latency -source -late -fall [constraints get cell $clock_late_fall_delay_start $i] \[get_clocks [constraints get cell 0 $i]\]"
+        set i [expr {$i+1}]
+}
+```
+
+After executing this script we can see that both clocks have been processed.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/1.png?raw=true)
+
+An SDC file has also been created.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/2.png?raw=true)
+
+After opening the SDC file, we can see that our CSV constraints have been converted into SDC format.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/3.png?raw=true)
+
+We can verify the parameter values by validating them against the CSV file. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/4.png?raw=true)
+
+This completes processing our clock constraints. 
+
+**Input constraints**
+
+As we did for the clock constraints, we also need to convert our input constraints into SDC format. However, there are some changes here. Earlier, our clock was a single-bit bus, but in the case of inputs, the ports can be either single-bit or multi-bit (bussed). For bussed ports, we have to add an asterisk '*' after the port name in the SDC file, as required by the SDC format. Our constraints.csv file does not indicate whether a port is single-bit or bussed. Therefore, we need to go through each Verilog file to check whether a given port is single-bit or bussed.
+
+Now, the first step is to search for the port name in all the Verilog files. The following TCL script performs this task. This code will also store only the input port names and eliminate any comments.
+```
+#----------------------------------------------------------------------------------------Input constraints----------------------------------------------------------------------------------------#
+#Setting delay parameters (extracting the position in  the matrix 'constraints'
+set input_early_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] early_rise_delay] 0] 0]
+set input_early_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] early_fall_delay] 0] 0]
+set input_late_rise_delay_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] late_rise_delay] 0] 0]
+set input_late_fall_delay_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] late_fall_delay] 0] 0]
+
+#Setting slew parameters (extracting the position in the matrix 'constraints'
+set input_early_rise_slew_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] early_rise_slew] 0] 0]
+set input_early_fall_slew_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] early_fall_slew] 0] 0]
+set input_late_rise_slew_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] late_rise_slew] 0] 0]
+set input_late_fall_slew_start [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] late_fall_slew] 0] 0]
+
+#Setting the clock parameter for input
+set related_clock [lindex [lindex [constraints search rect $clock_start_column $input_ports_start [expr {$number_of_columns-1}] [expr {$output_ports_start-1}] clocks] 0] 0]
+
+#Initialize i to loop over
+set i [expr {$input_ports_start+1}]
+
+#Set end of input ports 
+set end_of_ports [expr {$output_ports_start-1}]
+
+#Info messages to be printed
+puts "\nInfo-SDC: Working on SDC constraints...."
+puts "\nInfo-SDC: Categorizing input ports as bits and bussed"
+
+while { $i < $end_of_ports } {
+        #Differentiating input ports as bussed and bits
+        #Select each and every netlist one by one
+        set netlist [glob -dir $NetlistDirectory *.v]
+        #To store the final result in a temporary file with write access
+        set tmp_file [open /tmp/1 w]
+        #Loop to identify input  port names
+        foreach f $netlist {
+                set fd [open $f]
+                #puts "reading file $f"
+                while {[gets $fd line] != -1} {
+                        set pattern1 " [constraints get cell 0 $i];"
+                        if {[regexp -all -- $pattern1 $line]} {
+                                #puts "pattern1 \"$pattern1\" found and matching line in verilog file \"$f\" is \"$line\""
+                                set pattern2 [lindex [split $line ";"] 0]
+                                #puts "creating pattern2 by splitting pattern1 using semi-colon as delimeter => \"$pattern2\""
+                                if {[regexp -all {input} [lindex [split $pattern2 "\S+"] 0]]} {
+                                #puts "out of all patterns, \"$pattern2\" has matching string \"input\". So preserving this line and ignoring others"
+                                set s1 "[lindex [split $pattern2 "\S+"] 0] [lindex [split $pattern2 "\S+"] 1] [lindex [split $pattern2 "\S+"] 2]"
+                                #puts "printing first 3 elements of pattern2 as \"$s1\" using space as delimeter"
+                                puts -nonewline $tmp_file "\n[regsub -all {\s+} $s1 " "]"
+                                #puts "replace multiple spaces in s1 by single space and reformat as \"[regsub -all {\s+} $s1 " "]\""
+                                }
+                }
+}
+close $fd
+}
+close $tmp_file
+```
+
+For the first input port, cpu_en, we can see that it was found in multiple modules, as shown in the output below.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/5.png?raw=true)
+
+After processing all the Verilog files, all the port names are stored in a temporary file. Since ports appear in multiple modules, their names are repeated in this file. To remove duplicates, we “uniqify” the list using four stages: read, split, sort, and join. A specific command in our script reads the entire content of the file, splits it into a list of lines based on newline characters, sorts the list alphabetically while removing duplicates, and then joins the sorted unique lines back into a single string separated by newlines. This process is performed by the TCL script below. The script also identifies whether ports are bussed or single-bit by counting the number of elements in the declaration: single-bit ports have two elements (e.g., input cpu_en), while bussed ports have three elements (e.g., input [3:0] cpu_en). We use this method to differentiate bussed ports from single-bit ports. 
+
+```
+#Opening our temporary file 1 in read mode
+set tmp_file [open /tmp/1 r]
+
+#Creating and opening another temporary file 2 in write mode. This temp2 file will have our unique (non-redundant) ports
+set tmp2_file [open /tmp/2 w]
+
+#The below 4 puts statements are info messages just to check whether the operations of read, split, sort and join are happening properly. 
+#We can't use them together because TCL allows only command to read the file. If all 4 of them are used together only read for first one will work and may lead to errors later on.
+#puts "reading [read $tmp_file]"
+#puts "splitting /tmp/1 file as [split [read $tmp_file] \n]"
+#puts "sorting /tmp/1 file as [lsort -unique [split [read $tmp_file] \n]]"
+#puts "joining /tmp/1 file as [join [lsort -unique [split [read $tmp_file] \n]] ]"
+
+#Final unique ports present in tmp2 file
+puts -nonewline $tmp2_file "[join [lsort -unique [split [read $tmp_file] \n]] \n]"
+close $tmp_file
+close $tmp2_file
+
+#Opening temp2 file in read mode
+set tmp2_file [open /tmp/2 r]
+
+#Counting the number of elements in each individal port of temp2. If count is 2 then it is not bussed, if 3 then bussed
+set count [llength [read $tmp2_file]]
+#puts "Count is $count"
+
+#This if-then loops helps to put * over multi-bit (bussed ports)
+if {$count >2} {
+        set inp_ports [concat [constraints get cell 0 $i]*]
+        #puts "\nBussed"
+} else {
+        set inp_ports [constraints get cell 0 $i]
+        #puts "\nNot Bussed"
+}
+
+#Info to print to the user. This will also tell whether the port is bused or not by noticing the *
+puts "output port name is $inp_ports since count is $count\n"
+```
+
+The results at each individual stage are as follows:
+
+1. Reading the temporary file
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/6.png?raw=true)
+
+2. Splitting the individual ports
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/7.png?raw=true)
+
+3. Sorting or uniquely identifying the elements
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/8.png?raw=true)
+
+4. Joining the strings
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/9.png?raw=true)
+
+5. Identifying ports as single bit or bussed
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/10.png?raw=true)
+
+6. Final result
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/11.png?raw=true)
+
+Now that we have our input ports, the next step is to write them into the SDC file. The TCL script below performs this task.
+
+```
+#These puts statements write the output port parameters in SDC format to the .sdc file present in the output directory
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_early_rise_delay_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_early_fall_delay_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_late_rise_delay_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_delay -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_late_fall_delay_start $i] \[get_ports $inp_ports\]"
+
+puts -nonewline $sdc_file "\nset_output_transition -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_early_rise_slew_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_transition -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_early_fall_slew_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_transition -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_late_rise_slew_start $i] \[get_ports $inp_ports\]"
+puts -nonewline $sdc_file "\nset_output_transition -clock \[get_clocks [constraints get cell $related_clock $i]\] -min -rise -source_latency_included [constraints get cell $output_late_fall_slew_start $i] \[get_ports $inp_ports\]"
+
+#Incrementing to loop over all output ports
+set i [expr {$i+1}]
+}
+close $tmp2_file
+```
+
+After executing this, we will see the input constraints written to the SDC file.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/12.png?raw=true)
+
+We can validate them with respect to the csv file.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_3/13.png?raw=true)
+
+This completes processing our input constraints. 
+
