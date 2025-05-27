@@ -989,5 +989,6 @@ After executing this, all the unwanted characters are removed.
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/7.png?raw=true)
 
 The count now is 0. 
+
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/6.png?raw=true)
 
