@@ -880,3 +880,114 @@ This completes our hierarchy check.
 
 
 
+## Module 5 - Advanced Scripting Techniques and Quality of Results of Generation
+
+This module involves creating the synthesis script, utilizing procedures (procs) in the TCL script, analyzing the final timing results, and generating the final report.
+
+**Synthesis Script**
+
+Our synthesis tool, Yosys, requires a script file (.ys) to carry out synthesis. The TCL script below generates this synthesis script file (openMSP430.ys) and then executes the synthesis process.
+
+```
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------Synthesis Script-----------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#This section is used to create the synthesis script '.ys' file required by yosys to perform synthesis. The fileId over here refers to the synthesis script. 
+#Basically, we are dumping all the commands and verilog files that would be required to perform synthesis.
+puts "\nInfo: Creating main synthesis script to be used for yosys"
+set data "read_liberty -lib -ignore_miss_dir -setattr blackbox ${LateLibraryPath}"
+set filename "$DesignName.ys"
+puts "\nfilename is \"$filename\""
+set fileId [open $OutputDirectory/$filename "w"]
+puts "open \"$OutputDirectory/$filename\" in write mode"
+puts -nonewline $fileId $data
+puts "netlist is \"$netlist\""
+set netlist [glob -dir $NetlistDirectory *.v]
+foreach f $netlist {
+        set data $f
+        puts "data is \"$f\""
+        puts -nonewline $fileId "\n read_verilog $f"
+}
+
+puts -nonewline $fileId "\nhierarchy -top $DesignName"
+puts -nonewline $fileId "\nsynth -top $DesignName"
+puts -nonewline $fileId "\nsplitnets -ports -format __\ndfflibmap -liberty ${LateLibraryPath}\nopt"
+puts -nonewline $fileId "\nabc -liberty ${LateLibraryPath}"
+puts -nonewline $fileId "\nflatten"
+puts -nonewline $fileId "\nclean -purge\niopadmap -outpad BUFX2 A:Y -bits\nopt \nclean"
+puts -nonewline $fileId "\nwrite_verilog $OutputDirectory/$DesignName.synth.v"
+close $fileId
+puts "\nInfo: Synthesis script created and can be accessed from the path $OutputDirectory/$filename"
+puts "\nInfo: Running Synthesis...."
+
+#----------------------------------------------------------------Run synthesis script using yosys-----------------------------------------------------------------------------------------#
+
+#This command 'catches' for any error present while performing synthesis
+#It executes synthesis using the .ys script we created earlier and stores the output messages in the log file and scans it for any error messages
+#If error is present, it stops synthesis
+if {[catch {exec yosys -s $OutputDirectory/$DesignName.ys >& $OutputDirectory/$DesignName.synthesis.log} msg]} {
+        puts "\nError: Synthesis failed due to errors. Please refer to log $OutputDirectory/$DesignName.synthesis.log for errors"
+        exit
+} else {
+        puts "\nInfo: Synthesis finished successfully"
+}
+puts "\nInfo: Please refer to log $OutputDirectory/$DesignName.synthesis.log"
+```
+
+Synthesis script file created:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/2.png?raw=true)
+
+If there are no errors, then our synthesis is executed successfully. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/1.png?raw=true)
+
+If there are errors while executing synthesis, the script stops and we get a error message. We can check the log file for error details or do a 'grep -i error' in our terminal to list out all the errrors. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/3.png?raw=true) 
+
+Now, the synthesized file (.synth.v) from Yosys contain some unwanted characters such as asterisks '*' and backslashes '\'. These are shown in the image below:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/4.png?raw=true)
+
+We have around 6000 such characters in our openMSP430.synth.v file. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/5.png?raw=true)
+
+These characters are not accepted by our timing tool, OpenTimer, so we need to remove them. The script below handles this task.
+
+```
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#------------------------------------------------------------------------------Edit .synth.v file to be usable by Opentimer----------------------------------------------------------------#
+#------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#This section is used to remove all the asterisks '*' and backslashes '\' from the synthesized .v file. 
+#This is done because the Opentimer tool doesn't accept these characters.
+set fileId [open /tmp/1 "w"]
+puts -nonewline $fileId [exec grep -v -w "*" $OutputDirectory/$DesignName.synth.v]
+close $fileId
+
+set output [open $OutputDirectory/$DesignName.final.synth.v "w"]
+
+set filename "/tmp/1"
+set fid [open $filename r]
+
+while {[gets $fid line] != -1} {
+        puts -nonewline $output [string map {"\\" ""} $line]
+        puts -nonewline $output "\n"
+}
+close $fid
+close $output
+
+puts "\nInfo: Please find the synthesized netlist for $DesignName at below path. You can use this netlist for STA or PNR"
+puts "\n$OutputDirectory/$DesignName.final.synth.v"
+```
+
+After executing this, all the unwanted characters are removed. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/7.png?raw=true)
+
+The count now is 0. 
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/6.png?raw=true)
+
