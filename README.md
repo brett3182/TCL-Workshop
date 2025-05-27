@@ -1,5 +1,7 @@
 # TCL Workshop - VLSI System Design, 16th May 2025 - 25th May 2025
 
+This workshop outlines an automated workflow that converts design specifications and constraints from CSV files into a final timing report. The process includes validating the CSV format with a shell script, then using a TCL script to process the data into formats compatible with synthesis and timing analysis tools. Finally, the TCL script generates detailed timing reports, completing the workflow. Built for efficiency and reusability, this project aims to maintains consistency across different designs by using a standardized CSV template. Overall, it aims to automate timing report generation. 
+
 ## Module 1 - Introduction to TCL and VSDSYNTH Toolbox usage
 
 This part of the workshop involves completing a task where we develop a TCL interface (TCL box) that accepts a CSV file as input, processes it through a shell script, then transfers it to a TCL script, and ultimately generates a timing report.
