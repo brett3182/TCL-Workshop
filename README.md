@@ -992,3 +992,609 @@ The count now is 0.
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/6.png?raw=true)
 
+
+
+**Procs**
+
+A proc in TCL is a reusable block of code that performs a specific task. We have used five procs for our script. They are briefly explained as follows:
+
+**1. reopenStdout proc** - This proc is used to close our current screen log and dump out the messages in a new file.
+
+```
+#This proc is used to dump all our puts in a new file
+proc reopenStdout {file} {
+    #Close the screen log
+    close stdout
+    #Open a new filename 'file' in write mode
+    open $file w
+}
+```
+
+**2. set_multi_cpu_usage proc** - This procedure enables multi-threading to achieve faster execution.
+
+```
+proc set_multi_cpu_usage {args} {
+        array set options {-localCpu <num_of_threads> -help "" }
+        #foreach {switch value} [array get options] {
+        #puts "Option $switch is $value"
+        #}
+        while {[llength $args]} {
+        #puts "llength is [llength $args]"
+        #puts "lindex 0 of \"$args\" is [lindex $args 0]"
+                switch -glob -- [lindex $args 0] {
+                -localCpu {
+                           #puts "old args is $args"
+                           set args [lassign $args - options(-localCpu)]
+                           #puts "new args is \"$args\""
+                           puts "set_num_threads $options(-localCpu)"
+                          }
+                -help {
+                           #puts "old args is $args"
+                           set args [lassign $args - options(-help) ]
+                           #puts "new args is \"$args\""
+                           puts "Usage: set_multi_cpu_usage -localCpu <num_of_threads>"
+                      }
+                }
+        }
+}
+```
+
+If we set the arguments as '-localCpu 8 -help', we get the results as shown below. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/8.png?raw=true)
+
+In our main vsdsynth.tcl script, we have defined a configuration file (.conf) to store all the parameters required by the timing tool. This proc, along with the ones that follow, stores their key results in the .conf file.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/9.png?raw=true)
+
+After executing set_multi_cpu_usage proc, our configuration file is updated.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/10.png?raw=true)
+
+
+**3. read_lib proc** - This proc is used to read our early and late cell libraries. 
+
+```
+proc read_lib args {
+        array set options {-late <late_lib_path> -early <early_lib_path> -help ""}
+        while {[llength $args]} {
+                switch -glob -- [lindex $args 0] {
+                -late {
+                        set args [lassign $args - options(-late) ]
+                        puts "set_late_celllib_fpath $options(-late)"
+                      }
+                -early {
+                        set args [lassign $args - options(-early) ]
+                        puts "set_early_celllib_fpath $options(-early)"
+                       }
+                -help {
+                        set args [lassign $args - options(-help) ]
+                        puts "Usage: read_lib -late <late_lib_path> -early <early_lib_path>"
+                        puts "-late <provide late library path>"
+                        puts "-early <provide early library path>"
+                      }
+                default break
+                }
+        }
+}
+```
+
+Our configuration file is updated as shown below. 
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/11.png?raw=true)
+
+**4. read_verilog proc** - This proc is used to read the verilog file(s) as passed in the arguments. 
+
+```
+proc read_verilog {arg1} {
+puts "set_verilog_fpath $arg1"
+}
+```
+
+The configuration file is updated with the final synthesized verilog file. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/12.png?raw=true)
+
+**5. read_sdc proc** - This proc is used to convert our SDC file into a format which is accepted by the timing tool, Opentimer. 
+
+This involves several steps since our SDC consists of several parameters and each of them need to handled differently. First, we need to remove all the square braces '[' ']' from our SDC file. 
+
+```
+proc read_sdc {arg1} {
+set sdc_dirname [file dirname $arg1]
+set sdc_filename [lindex [split [file tail $arg1] .] 0 ]
+set sdc [open $arg1 r]
+set tmp_file [open /tmp/1 w]
+
+puts -nonewline $tmp_file [string map {"\[" "" "\]" " "} [read $sdc]]
+close $tmp_file
+```
+
+Our SDC file now looks like this:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/13.png?raw=true)
+
+There are three main clock SDC parameters, create_clock, set_clock_latency and set_clock_transition. All of these would be handled separately and the results would be stored in a temporary file. 
+
+Handing create_clock constraints. 
+
+```
+#-----------------------------------------------------------------------------#
+#----------------converting create_clock constraints--------------------------#
+#-----------------------------------------------------------------------------#
+
+set tmp_file [open /tmp/1 r]
+set timing_file [open /tmp/3 w]
+set lines [split [read $tmp_file] "\n"]
+set find_clocks [lsearch -all -inline $lines "create_clock*"]
+foreach elem $find_clocks {
+        set clock_port_name [lindex $elem [expr {[lsearch $elem "get_ports"]+1}]]
+        set clock_period [lindex $elem [expr {[lsearch $elem "-period"]+1}]]
+        set duty_cycle [expr {100 - [expr {[lindex [lindex $elem [expr {[lsearch $elem "-waveform"]+1}]] 1]*100/$clock_period}]}]
+        puts $timing_file "clock $clock_port_name $clock_period $duty_cycle"
+        }
+close $tmp_file
+```
+
+Output results:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/14.png?raw=true)
+
+Handing set_clock_latency constraints.
+
+```
+#-----------------------------------------------------------------------------#
+#----------------converting set_clock_latency constraints---------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_clock_latency*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_clocks"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*"] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                        set port_index [lsearch $new_elem "get_clocks"]
+                        lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $tmp2_file "\nat $port_name $delay_value"
+        }
+}
+
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file [read $tmp2_file]
+close $tmp2_file
+```
+
+Output results:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/15.png?raw=true)
+
+Handling set_clock_transition constraints.
+
+```
+#-----------------------------------------------------------------------------#
+#----------------converting set_clock_transition constraints------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_clock_transition*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_clocks"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*"] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                        set port_index [lsearch $new_elem "get_clocks"]
+                        lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $tmp2_file "\nslew $port_name $delay_value"
+        }
+}
+
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file [read $tmp2_file]
+close $tmp2_file
+```
+
+Output results:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/16.png?raw=true)
+
+This completes our clock constraints. They are converted into the format as required by Opentimer. 
+
+Now, the input constraints follow a similar trend. The script below handles the input constraints. 
+
+```
+#-----------------------------------------------------------------------------#
+#----------------converting set_input_delay constraints-----------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_input_delay*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_ports"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*"] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                        set port_index [lsearch $new_elem "get_ports"]
+                        lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $tmp2_file "\nat $port_name $delay_value"
+        }
+}
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file [read $tmp2_file]
+close $tmp2_file
+
+#-----------------------------------------------------------------------------#
+#----------------converting set_input_transition constraints------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_input_transition*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_ports"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*"] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                        set port_index [lsearch $new_elem "get_ports"]
+                        lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $tmp2_file "\nslew $port_name $delay_value"
+        }
+}
+
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file [read $tmp2_file]
+close $tmp2_file
+```
+
+All the input constraints are converted into our required format. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/17.png?raw=true)
+
+The output SDC constraints are handled in a similar fashion.
+
+```
+#-----------------------------------------------------------------------------#
+#---------------converting set_output_delay constraints-----------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_output_delay*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_ports"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*"] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                        set port_index [lsearch $new_elem "get_ports"]
+                        lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $tmp2_file "\nrat $port_name $delay_value"
+        }
+}
+
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file [read $tmp2_file]
+close $tmp2_file
+
+#-----------------------------------------------------------------------------#
+#-------------------converting set_load constraints---------------------------#
+#-----------------------------------------------------------------------------#
+
+set find_keyword [lsearch -all -inline $lines "set_load*"]
+set tmp2_file [open /tmp/2 w]
+set new_port_name ""
+foreach elem $find_keyword {
+        set port_name [lindex $elem [expr {[lsearch $elem "get_ports"]+1}]]
+        if {![string match $new_port_name $port_name]} {
+                set new_port_name $port_name
+                set delays_list [lsearch -all -inline $find_keyword [join [list "*" " " $port_name " " "*" ] ""]]
+                set delay_value ""
+                foreach new_elem $delays_list {
+                set port_index [lsearch $new_elem "get_ports"]
+                lappend delay_value [lindex $new_elem [expr {$port_index-1}]]
+                }
+                puts -nonewline $timing_file "\nload $port_name $delay_value"
+        }
+}
+close $tmp2_file
+set tmp2_file [open /tmp/2 r]
+puts -nonewline $timing_file  [read $tmp2_file]
+close $tmp2_file
+```
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/18.png?raw=true)
+
+Now, the bussed input and output ports are converted into their bit-blasted versions and also the final timing file (.timing) is generated
+
+```
+#-----------------------------------------------------------------------------#
+close $timing_file
+
+set ot_timing_file [open $sdc_dirname/$sdc_filename.timing w]
+set timing_file [open /tmp/3 r]
+while {[gets $timing_file line] != -1} {
+        if {[regexp -all -- {\*} $line]} {
+                set bussed [lindex [lindex [split $line "*"] 0] 1]
+                set final_synth_netlist [open $sdc_dirname/$sdc_filename.final.synth.v r]
+                while {[gets $final_synth_netlist line2] != -1 } {
+                        if {[regexp -all -- $bussed $line2] && [regexp -all -- {input} $line2] && ![string match "" $line]} {
+                        puts -nonewline $ot_timing_file "\n[lindex [lindex [split $line "*"] 0 ] 0 ] [lindex [lindex [split $line2 ";"] 0 ] 1 ] [lindex [split $line "*"] 1 ]"
+                        } elseif {[regexp -all -- $bussed $line2] && [regexp -all -- {output} $line2] && ![string match "" $line]} {
+                        puts -nonewline $ot_timing_file "\n[lindex [lindex [split $line "*"] 0 ] 0 ] [lindex [lindex [split $line2 ";"] 0 ] 1 ] [lindex [split $line "*"] 1 ]"
+                        }
+                }
+        } else {
+        puts -nonewline $ot_timing_file  "\n$line"
+        }
+}
+
+close $timing_file
+puts "set_timing_fpath $sdc_dirname/$sdc_filename.timing"
+}
+```
+
+Timing file created:
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/19.png?raw=true)
+
+This timing file contains the SDC parameters converted into a format compatible with OpenTimer. All the bussed ports have also been converted into their bit blasted versions (eg. dbg_i2c_addr* transforms to its 7-bit-blasted version dbg_i2c_addr_0, dbg_i2c_addr_1 ..... till dbg_i2c_addr_6)
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/20.png?raw=true)
+
+All of these procs have been sourced in our main TCL script and have been called during execution.
+
+```
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#----------------------------------------------------------------------------------STA using Opentimer----------------------------------------------------------------------------------------#
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+
+#This section sources the procs that we have created and uses them to create the .conf and .timing file
+puts "\nInfo: Timing Analysis Started ... "
+puts "\nInfo: Initializing number of threads, libraries, sdc, verilog netlist path..."
+
+source /home/vsduser/vsdsynth/procs/reopenStdout.proc
+source /home/vsduser/vsdsynth/procs/set_num_threads.proc
+reopenStdout $OutputDirectory/$DesignName.conf
+set_multi_cpu_usage -localCpu 4
+
+source /home/vsduser/vsdsynth/procs/read_lib.proc
+read_lib -early /home/vsduser/vsdsynth/osu018_stdcells.lib
+read_lib -late /home/vsduser/vsdsynth/osu018_stdcells.lib
+
+source /home/vsduser/vsdsynth/procs/read_verilog.proc
+read_verilog $OutputDirectory/$DesignName.final.synth.v
+
+source /home/vsduser/vsdsynth/procs/read_sdc.proc
+read_sdc $OutputDirectory/$DesignName.sdc
+reopenStdout /dev/tty
+```
+
+This completes handling procs.
+
+**Scripts for Opentimer**
+
+Opentimer requires spef file as an input, it is created in the step below. Also, the configuration file is updated with more details. 
+
+```
+#-------------------------------------------------------------------------------SPEF file------------------------------------------------------------------------------------------------------#
+
+#Generating .spef file
+if {$enable_prelayout_timing == 1} {
+        puts "\nInfo: enable prelayout_timing is $enable_prelayout_timing. Enabling zero-wire load parasitics"
+        set spef_file [open $OutputDirectory/$DesignName.spef w]
+        puts $spef_file "*SPEF \"IEEE 1481-1998\""
+        puts $spef_file "*DESIGN \"$DesignName\""
+        puts $spef_file "*DATE \"Mod May 26 11:59:00 2025\""
+        puts $spef_file "*VENDOR \"VLSI System Design\""
+        puts $spef_file "*PROGRAM \"TCL Workshop\""
+        puts $spef_file "*DATE \"0.0\""
+        puts $spef_file "*DESIGN FLOW \"NETLIST_TYPE_VERILOG\""
+        puts $spef_file "*DIVIDER /"
+        puts $spef_file "*DELIMITER : "
+        puts $spef_file "*BUS_DELIMITER [ ]"
+        puts $spef_file "*T_UNIT 1 PS"
+        puts $spef_file "*C_UNIT 1 FF"
+        puts $spef_file "*R_UNIT 1 KOHM"
+        puts $spef_file "*L_UNIT 1 UH"
+}
+close $spef_file
+
+#Dumping details required by opentimer into .conf file
+set conf_file [open $OutputDirectory/$DesignName.conf a]
+puts $conf_file "set_spef_fpath $OutputDirectory/$DesignName.spef"
+puts $conf_file "init_timer"
+puts $conf_file "report_timer"
+puts $conf_file "report_wns"
+puts $conf_file "report_tns"
+puts $conf_file "report_worst_paths -numPaths 10000 "
+close $conf_file
+```
+
+SPEF file created.
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/21.png?raw=true)
+
+Contents of .spef file
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/22.png?raw=true)
+
+
+Updated and final configuration file as required by timing analyzer. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/23.png?raw=true)
+
+Now, STA is performed by our timing tool and it's runtime is calculted as follows:
+
+```
+#-------------------------------------------------------------STA runtime calculation-----------------------------------------------------------------------------------------#
+set time_elapsed_in_us [time {exec /home/vsduser/OpenTimer-1.0.5/bin/OpenTimer < $OutputDirectory/$DesignName.conf >& $OutputDirectory/$DesignName.results} ]
+set time_elapsed_in_sec "[expr {[lindex $time_elapsed_in_us 0]/100000}]sec"
+puts "\nInfo: STA finished in $time_elapsed_in_sec seconds"
+puts "\nInfo: Refer to $OutputDirectory/$DesignName.results for warings and errors"
+```
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/24.png?raw=true)
+
+After STA is complete, specific reports are analyzed to extract key results such as Worst Negative Slack (WNS) and the number of setup/hold violations.
+
+```
+#-------------------------------------------------------------------------Quality of results generation----------------------------------------------------------------------------------#
+
+#-------------------------------------------------------------STA runtime calculation-----------------------------------------------------------------------------------------#
+set time_elapsed_in_us [time {exec /home/vsduser/OpenTimer-1.0.5/bin/OpenTimer < $OutputDirectory/$DesignName.conf >& $OutputDirectory/$DesignName.results} ]
+set time_elapsed_in_sec "[expr {[lindex $time_elapsed_in_us 0]/100000}]sec"
+puts "\nInfo: STA finished in $time_elapsed_in_sec seconds"
+puts "\nInfo: Refer to $OutputDirectory/$DesignName.results for warings and errors"
+
+
+#------------------------------------------------------------ Worst output violation------------------- --------------------------#
+set worst_RAT_slack "-"
+set report_file [open $OutputDirectory/$DesignName.results r]
+set pattern {RAT}
+while {[gets $report_file line] != -1} {
+        if {[regexp $pattern $line]} {
+                set worst_RAT_slack "[expr {[lindex $line 3]/1000}]ns"
+                break
+        } else {
+                continue
+        }
+}
+close $report_file
+#------------------------------------------------------------Number of output violations------------------- ------------------------#
+set report_file [open $OutputDirectory/$DesignName.results r]
+set count 0
+while {[gets $report_file line] != -1} {
+        incr count [regexp -all -- $pattern $line]
+}
+set Number_output_violations $count
+close $report_file
+
+#--------------------------------------------------------------Worst setup violation -------------------------#
+set worst_negative_setup_slack "-"
+set report_file [open $OutputDirectory/$DesignName.results r]
+set pattern {Setup}
+while {[gets $report_file line] != -1} {
+        if {[regexp $pattern $line]} {
+                set worst_negative_setup_slack "[expr {[lindex $line 3]/1000}]ns"
+                break
+        } else {
+                continue
+        }
+}
+close $report_file
+
+
+#-------------------------------------------------------Number of setup violations--------------------------------#
+set report_file [open $OutputDirectory/$DesignName.results r]
+set count 0
+while {[gets $report_file line] != -1} {
+        incr count [regexp -all -- $pattern $line]
+}
+set Number_of_setup_violations $count
+close $report_file
+
+#-------------------------------------------------------Worst hold violation--------------------------------#
+set worst_negative_hold_slack "-"
+set report_file [open $OutputDirectory/$DesignName.results r]
+set pattern {Hold}
+while {[gets $report_file line] != -1} {
+        if {[regexp $pattern $line]} {
+                set worst_negative_hold_slack "[expr {[lindex $line 3]/1000}]ns"
+                break
+        } else {
+                continue
+        }
+}
+close $report_file
+
+#---------------------------------------------------Number of hold violations--------------------------------#
+set report_file [open $OutputDirectory/$DesignName.results r]
+set count 0
+while {[gets $report_file line] != -1} {
+        incr count [regexp -all -- $pattern $line]
+}
+set Number_of_hold_violations $count
+close $report_file
+
+#----------------------------------------------------Number of instances-------------------------------------------#
+
+set pattern {Num of gates}
+set report_file [open $OutputDirectory/$DesignName.results r]
+while {[gets $report_file line] != -1} {
+        if {[regexp $pattern $line]} {
+                set Instance_count "[lindex [join $line " "] 4 ]"
+                break
+        } else {
+                continue
+        }
+}
+close $report_file
+
+#----------------------------------------------------Final report--------------------------------------------------#
+puts "DesignName is \{$DesignName\}"
+puts "time_elapsed_in_sec is \{$time_elapsed_in_sec\}"
+puts "Instance_count is \{$Instance_count\}"
+puts "worst_negative_setup_slack is \{$worst_negative_setup_slack\}"
+puts "Number_of_setup_violations is \{$Number_of_setup_violations\}"
+puts "worst_negative_hold_slack is \{$worst_negative_hold_slack\}"
+puts "Number_of_hold_violations is \{$Number_of_hold_violations\}"
+puts "worst_RAT_slack is \{$worst_RAT_slack\}"
+puts "Number_output_violations is \{$Number_output_violations\}"
+```
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/25.png?raw=true)
+
+This report is formatted to present it in a industry preferred format. 
+
+```
+#------------------------------------------------Report displayed in industry preferred form-------------------------------#
+
+
+puts "\n"
+puts "                                          ****PRELAYOUT TIMING RESULTS****                                        "
+set formatStr "%15s %15s %15s %15s %15s %15s %15s %15s %15s"
+
+puts [format $formatStr "----------" "-------" "--------------" "---------" "---------" "--------" "--------" "-------" "-------"]
+puts [format $formatStr "DesignName" "Runtime" "Instance Count" "WNS Setup" "FEP Setup" "WNS Hold" "FEP Hold" "WNS RAT" "FEP RAT"]
+puts [format $formatStr "----------" "-------" "--------------" "---------" "---------" "--------" "--------" "-------" "-------"]
+foreach design_name $DesignName runtime $time_elapsed_in_sec instance_count $Instance_count wns_setup $worst_negative_setup_slack fep_setup $Number_of_setup_violations wns_hold $worst_negative_hold_slack fep_hold $Number_of_hold_violations wns_rat $worst_RAT_slack fep_rat $Number_output_violations {
+        puts [format $formatStr $design_name $runtime $instance_count $wns_setup $fep_setup $wns_hold $fep_hold $wns_rat $fep_rat]
+}
+
+puts [format $formatStr "----------" "-------" "--------------" "---------" "---------" "--------" "--------" "-------" "-------"]
+puts "\n"
+
+
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------END---------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------#
+```
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/26.png?raw=true)
+
+This completes our task. 
+
+The files generated at the end of this process are shown below. 
+
+![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/27.png?raw=true)
