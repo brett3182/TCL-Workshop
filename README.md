@@ -943,11 +943,11 @@ If there are no errors, then our synthesis is executed successfully.
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/1.png?raw=true)
 
-If there are errors while executing synthesis, the script stops and we get a error message. We can check the log file for error details or do a 'grep -i error' in our terminal to list out all the errrors. 
+If there are errors while executing synthesis, the script stops and we get a error message. We can check the log file for error details or do a 'grep -i error' in our terminal to list out all the errors. 
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/3.png?raw=true) 
 
-Now, the synthesized file (.synth.v) from Yosys contain some unwanted characters such as asterisks '*' and backslashes '\'. These are shown in the image below:
+Now, the synthesized file (.synth.v) from Yosys contain some unwanted characters such as asterisks '*' and backslashes. These are shown in the image below:
 
 ![image alt](https://github.com/brett3182/TCL-Workshop/blob/main/Images/Module_1_Outputs/Module_5_Outputs/4.png?raw=true)
 
