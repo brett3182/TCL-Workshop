@@ -1010,7 +1010,7 @@ proc reopenStdout {file} {
 }
 ```
 
-**2. set_multi_cpu_usage proc** - This procedure enables multi-threading to achieve faster execution.
+**2. set_multi_cpu_usage proc** - This proc enables multi-threading to achieve faster execution.
 
 ```
 proc set_multi_cpu_usage {args} {
